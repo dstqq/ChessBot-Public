@@ -1,0 +1,9 @@
+*.pyc
+__pycache__/
+const.py
+*.cfg
+# Environments
+.venv
+venv/
+
+tasks.txt
