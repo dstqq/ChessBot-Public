@@ -513,7 +513,7 @@ def check_king(game_num, x1, y1, x2, y2):
             return "king_wall"
 
 
-def check_for_check(game_num, callback_query, b):  # checking for check on edited desk
+def check_for_check(game_num, callback_query, b) -> bool:  # checking for check on edited desk
     game_info = sql.get_info_db(game_num)
     first_field = sql.get_pos_db(game_num)
     white_king = game_info["white_king"]
@@ -524,10 +524,10 @@ def check_for_check(game_num, callback_query, b):  # checking for check on edite
             white_king = callback_query.data
         if first_field == black_king:
             black_king = callback_query.data
-    for i in range(1, 9):
+    for i in range(1, 9):  # going through all desk in search of figures
         for j in range(1, 9):
             if game_info["color_turn"] == "white":
-                if b[alf[i] + str(j)][0] == "1":
+                if b[alf[i] + str(j)][0] == "1":  # black figures
                     if b[alf[i] + str(j)] == "11":  # black pawn
                         if white_king in check_black_pawn(b, alf[i], str(j)):
                             return True
@@ -553,7 +553,7 @@ def check_for_check(game_num, callback_query, b):  # checking for check on edite
                             return True
 
             if game_info["color_turn"] == "black":
-                if b[alf[i] + str(j)][0] == "0":
+                if b[alf[i] + str(j)][0] == "0":  # white figures or nothing
                     if b[alf[i] + str(j)] == "01":  # white pawn
                         if black_king in check_white_pawn(b, alf[i], str(j)):
                             return True
@@ -580,16 +580,15 @@ def check_for_check(game_num, callback_query, b):  # checking for check on edite
     return False
 
 
-def check_mate(game_num):  # checking for mate on currently desk
+def check_mate(game_num):  # checking for mate on current desk
     res = True
     game_info = sql.get_info_db(game_num)
     for i in range(1, 9):
         for j in range(1, 9):
-            if game_info["color_turn"] == "white":
+            if game_info["color_turn"] == "white":  # if white king is in check
                 b = sql.get_board_db(game_num)
                 if b[alf[i] + str(j)] == "01":  # pawn
-                    possible_fields = check_white_pawn(
-                        b, alf[i], str(j))
+                    possible_fields = check_white_pawn(b, alf[i], str(j))
                     for field in possible_fields:
                         b1 = b
                         b1[alf[i] + str(j)] = "00"
@@ -657,7 +656,7 @@ async def start_game(message: types.Message):
             name += str(message.from_user.last_name)
         sql.init_board_table(str(message_obj.message_id), str(message.chat.id), str(
             name), message.from_user.username, str(time.time()))
-        await bot.send_message(const.pufik, '/accept_game_1')
+        await bot.send_message(const.diema, '/accept_game_1')
 
 
 @dp.message_handler(commands=['accept_game_1'])
