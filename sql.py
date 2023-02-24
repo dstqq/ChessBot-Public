@@ -202,22 +202,27 @@ def change_board_db(game_num, start_field, start_field_value, end_field, end_fie
 def change_turn_db(game_num):
     game_info = get_info_db(game_num)
     sql = "UPDATE board1 SET value = %s WHERE field = %s"
-    if game_info["color_turn"] == "0":
-        val = [("1", "color_turn"), (str(time.time()), "black_last_time_move"), ('0', "white_time")]
+    if game_info["color_turn"] == "0":  # it was white turn
+        color_turn = "1"  # now it's black turn
+        val = [(f"{color_turn}", "color_turn"), (str(time.time()), "black_last_time_move"), ('0', "white_time")]
         # val = (str(int(game_info["white_time"]) - (time.time() - int(game_info["white_last_time_move"]))), "white_time")
 
-    elif game_info["color_turn"] == "1":
-        val = [("0", "color_turn"), (str(time.time()), "white_last_time_move"),('0', "black_time")]
+    elif game_info["color_turn"] == "1":  # it was black turn
+        color_turn = "0"  # now it's white turn
+        val = [(f"{color_turn}", "color_turn"), (str(time.time()), "white_last_time_move"),('0', "black_time")]
         # val = (str(int(game_info["black_time"]) - (time.time() - int(game_info["black_last_time_move"]))), "black_time")
 
-    elif game_info["color_turn"] == "transformation_white":
+    elif game_info["color_turn"] == "transf_0":
+        color_turn = "1"  # now it's black turn
         val = [("1", "color_turn"), (str(time.time()), "black_last_time_move"),('0', "white_time")]
     
-    elif game_info["color_turn"] == "transformation_black":
+    elif game_info["color_turn"] == "transf_1":
+        color_turn = "0"  # now it's white turn
         val = [("0", "color_turn"), (str(time.time()), "white_last_time_move"),('0', "black_time")]
 
     mycursor.executemany(sql, val)
     mydb.commit()
+    return color_turn
 
 
 def change_castling_info_db(game_num, field):
