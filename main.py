@@ -159,8 +159,8 @@ async def show_board(chat_id, game_num, mode, call):  # create and send game boa
 
     myresult = sql.get_all_db(game_num)
 
-    t = "♔ Белого короля" if myresult[64][2] == "white" or myresult[
-        64][2] == "transformation_white" else "♚ Черного короля"
+    t = "♔ Белого короля" if myresult[64][2] == "0" or myresult[
+        64][2] == "transformation_white" else "♚ Черного короля"  # myresult[64][2] == game_info['color_turn']
     """timer = str(players["timew"]) if players["turn"] == "white" else str(players["timeb"])
     timew, timeb = Decimal(str(players["timew"])), Decimal(
         str(players["timeb"]))
@@ -217,11 +217,10 @@ async def do_turn(chat_id, call, game_num):  # movement mechanism
         print("SHAH")
         await bot.send_message(int(game_info["white_id"]), game_info["color_turn"]+" is in check")
         await bot.send_message(int(game_info["black_id"]), game_info["color_turn"]+" is in check")
-        """if check_mate(game_num):
+        if check_mate(game_num):
             print("MAT")
-            await bot.send_message(int(game_info["white_id"]), game_info["color_turn"]+" is in check")
-            await bot.send_message(int(game_info["black_id"]), game_info["color_turn"]+" is in check")"""
-    # await check_for_check(game_num, chat_id, call)
+            await bot.send_message(int(game_info["white_id"]), game_info["color_turn"]+" is mated")
+            await bot.send_message(int(game_info["black_id"]), game_info["color_turn"]+" is mated")
 
 
 
@@ -346,7 +345,7 @@ def check_rook(b, x, y):  # return all possible squares to move as a rook
     return res
 
 
-def check_knight(x, y):  # return all possible squares to move as a knight
+def check_knight(b, x, y):  # return all possible squares to move as a knight
     res, k = [], 1
     while alf[k] != x:
         k += 1
@@ -425,6 +424,22 @@ def check_kings(b, x, y):  # return all possible squares to move as a king
                     if alf[k+i]+str(int(y)+j) != x+y:
                         res.append(alf[k+i]+str(int(y)+j))
     return res
+
+
+figure_moves = {
+    "01": check_white_pawn,
+    "02": check_bishop,
+    "03": check_knight,
+    "04": check_rook,
+    "05": check_queens,
+    "06": check_kings,
+    "11": check_black_pawn,
+    "12": check_bishop,
+    "13": check_knight,
+    "14": check_rook,
+    "15": check_queens,
+    "16": check_kings
+}
 
 
 # return all possible squares to move as a king
@@ -513,11 +528,16 @@ def check_king(game_num, x1, y1, x2, y2):
             return "king_wall"
 
 
+def get_values(d, keys, default=None):
+    reverse = dict(zip(d.values(), d.keys()))
+    return (reverse.get(keys))
+
+
 def check_for_check(game_num, callback_query, b) -> bool:  # checking for check on edited desk
     game_info = sql.get_info_db(game_num)
     first_field = sql.get_pos_db(game_num)
-    white_king = game_info["white_king"]
-    black_king = game_info["black_king"]
+    white_king = get_values(b, '06')
+    black_king = get_values(b, '16')
     if callback_query != "check":
         if first_field == white_king:  # king moving
             # res = check_king(game_num, callback_query, first_field[0], first_field[1], callback_query.data[0], callback_query.data[1], "go")
@@ -526,7 +546,7 @@ def check_for_check(game_num, callback_query, b) -> bool:  # checking for check 
             black_king = callback_query.data
     for i in range(1, 9):  # going through all desk in search of figures
         for j in range(1, 9):
-            if game_info["color_turn"] == "white":
+            if game_info["color_turn"] == "0":
                 if b[alf[i] + str(j)][0] == "1":  # black figures
                     if b[alf[i] + str(j)] == "11":  # black pawn
                         if white_king in check_black_pawn(b, alf[i], str(j)):
@@ -537,7 +557,7 @@ def check_for_check(game_num, callback_query, b) -> bool:  # checking for check 
                             return True
 
                     elif b[alf[i] + str(j)] == "13":  # black knight
-                        if white_king in check_knight(alf[i], str(j)):
+                        if white_king in check_knight(b, alf[i], str(j)):
                             return True
 
                     elif b[alf[i] + str(j)] == "14":  # black rook
@@ -552,7 +572,7 @@ def check_for_check(game_num, callback_query, b) -> bool:  # checking for check 
                         if white_king in check_kings(b, alf[i], str(j)):
                             return True
 
-            if game_info["color_turn"] == "black":
+            if game_info["color_turn"] == "1":
                 if b[alf[i] + str(j)][0] == "0":  # white figures or nothing
                     if b[alf[i] + str(j)] == "01":  # white pawn
                         if black_king in check_white_pawn(b, alf[i], str(j)):
@@ -563,7 +583,7 @@ def check_for_check(game_num, callback_query, b) -> bool:  # checking for check 
                             return True
 
                     elif b[alf[i] + str(j)] == "03":  # white knight
-                        if black_king in check_knight(alf[i], str(j)):
+                        if black_king in check_knight(b, alf[i], str(j)):
                             return True
 
                     elif b[alf[i] + str(j)] == "04":  # white rook
@@ -580,62 +600,23 @@ def check_for_check(game_num, callback_query, b) -> bool:  # checking for check 
     return False
 
 
-def check_mate(game_num):  # checking for mate on current desk
-    res = True
+def check_mate(game_num):
     game_info = sql.get_info_db(game_num)
-    for i in range(1, 9):
-        for j in range(1, 9):
-            if game_info["color_turn"] == "white":  # if white king is in check
-                b = sql.get_board_db(game_num)
-                if b[alf[i] + str(j)] == "01":  # pawn
-                    possible_fields = check_white_pawn(b, alf[i], str(j))
-                    for field in possible_fields:
-                        b1 = b
-                        b1[alf[i] + str(j)] = "00"
-                        b1[field] = "01"
-                        if not check_for_check(game_num, "check", b1):
-                            return False
-                if b[alf[i] + str(j)] == "02":  # bishop
-                    possible_fields = check_bishop(b, alf[i], str(j))
-                    for field in possible_fields:
-                        b1 = b
-                        b1[alf[i] + str(j)] = "00"
-                        b1[field] = "02"
-                        if not check_for_check(game_num, "check", b1):
-                            return False
-                if b[alf[i] + str(j)] == "03":  # knight
-                    possible_fields = check_knight(alf[i], str(j))
-                    for field in possible_fields:
-                        b1 = b
-                        b1[alf[i] + str(j)] = "00"
-                        b1[field] = "03"
-                        if not check_for_check(game_num, "check", b1):
-                            return False
-                if b[alf[i] + str(j)] == "04":  # rook
-                    possible_fields = check_rook(b, alf[i], str(j))
-                    for field in possible_fields:
-                        b1 = b
-                        b1[alf[i] + str(j)] = "00"
-                        b1[field] = "04"
-                        if not check_for_check(game_num, "check", b1):
-                            return False
-                if b[alf[i] + str(j)] == "05":  # queen
-                    possible_fields = check_queens(b, alf[i], str(j))
-                    for field in possible_fields:
-                        b1 = b
-                        b1[alf[i] + str(j)] = "00"
-                        b1[field] = "05"
-                        if not check_for_check(game_num, "check", b1):
-                            return False
-                if b[alf[i] + str(j)] == "06":  # king
-                    possible_fields = check_kings(b, alf[i], str(j))
-                    for field in possible_fields:
-                        b1 = b
-                        b1[alf[i] + str(j)] = "00"
-                        b1[field] = "06"
-                        if not check_for_check(game_num, field, b1):
-                            return False
-    return res
+    b = sql.get_board_db(game_num)
+    color_turn = game_info["color_turn"]
+        
+    for pos, figure in b.items():
+        if figure.startswith(color_turn):
+            moves = figure_moves.get(figure, lambda b, x, y: [])
+            possible_fields = moves(b, pos[0], pos[1])
+            for field in possible_fields:
+                b1 = b.copy()
+                b1[pos] = "00"
+                b1[field] = figure
+                if not check_for_check(game_num, "check", b1):
+                    print(f'{figure} from {pos} to {field}')
+                    return False
+    return True
 
 
 @dp.message_handler(commands=['start_game'])  # creating new game function
@@ -671,6 +652,12 @@ async def accept_game_1(message: types.Message):
     await show_board(message.chat.id, "1", "both", 1)
 
 
+@dp.message_handler(commands=['get_board'])
+async def accept_game_1(message: types.Message):
+    b = sql.get_board_db('1')
+    print(b)
+
+
 # mydatabase.bot_info creating function
 @dp.message_handler(commands=['start_db'])
 async def create_bot_info_table(message: types.Message):
@@ -697,6 +684,7 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
     start_field = sql.get_pos_db(game_num)
     b = sql.get_board_db(game_num)
     game_info = sql.get_info_db(game_num)
+    player_id:str = "white_id" if game_info["color_turn"] == "0" else "black_id"
     if game_info["color_turn"].startswith("transformation"):  # if a figure transformation is taking place now
         if callback_query.data.startswith("transformation"):  
             new_figure = callback_query.data[len("transformation"):len("transformation05")]
@@ -713,18 +701,18 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
                 await bot.send_message(int(game_info["black_id"]), msg)
         else:
             await callback_query.answer(show_alert=False, text="Now is not your turn!")
-    elif game_info[game_info["color_turn"]+"_id"] == str(chat_id):  # if the player whose turn it is pressed the button
+    elif game_info[player_id] == str(chat_id):  # if the player whose turn it is pressed the button
         if start_field == " ":  # if figure is NOT selected
             if callback_query.data == "pass":
                 pass
             # if a non-empty field for selecting a figure is selected
             elif b[callback_query.data] != "00" and len(callback_query.data) < 4:
                 # white chooses black
-                if game_info["color_turn"] == "white" and b[callback_query.data][0] == "1":
+                if game_info["color_turn"] == "0" and b[callback_query.data][0] == "1":
                     await callback_query.answer(show_alert=False, text="Figure isn't selected")
 
                 # black chooses white
-                elif game_info["color_turn"] == "black" and b[callback_query.data][0] == "0":
+                elif game_info["color_turn"] == "1" and b[callback_query.data][0] == "0":
                     await callback_query.answer(show_alert=False, text="Figure isn't selected")
                 else:
                     await callback_query.answer(show_alert=False, text=f"You choose {figures[b[callback_query.data]]}, choose field")
@@ -796,7 +784,7 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
 
                 # -----------------------KNIGHTS---------------------------------------------------
                 elif b[start_field] == "03" or b[start_field] == "13":  # # knights move to EMPTY square
-                    if callback_query.data in check_knight(x1, y1):
+                    if callback_query.data in check_knight(b, x1, y1):
                         b[callback_query.data] = b[start_field]
                         b[start_field] = "00"
                         if check_for_check(game_num, callback_query, b):
@@ -933,7 +921,7 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
                 if b[callback_query.data][0] != b[start_field][0]:
                     # -----------------------KNIGHTS----------------------------------
                     if b[start_field] == "03" or b[start_field] == "13":  # knights move to NON-EMPTY square
-                        if callback_query.data in check_knight(x1, y1):
+                        if callback_query.data in check_knight(b, x1, y1):
                             b[callback_query.data] = b[start_field]
                             b[start_field] = "00"
                             if check_for_check(game_num, callback_query, b):

@@ -83,7 +83,7 @@ def init_board_table(white_last_mes_id, white_id, white_name, white_username, st
         ('f8', '12'),
         ('g8', '13'),
         ('h8', '14'),
-        ('color_turn', 'white'),
+        ('color_turn', '0'),  #  ('color_turn', 'white') ->  ('color_turn', '0')
         ('white_last_mes_id', white_last_mes_id),
         ('black_last_mes_id', '0'),
         ('white_time', '600'),
@@ -136,7 +136,7 @@ def create_new_game() -> str:  # getting number of games and increase it
     return myresult[0][0]
 
 
-def get_board_db(game_num):
+def get_board_db(game_num:str):
     b = {}
     game_name = "board" + game_num
     mycursor.execute(f"SELECT * FROM {game_name}")
@@ -145,7 +145,7 @@ def get_board_db(game_num):
         b[x[1]] = x[2]
     return b
 
-def get_info_db(game_num):
+def get_info_db(game_num:str):
     game_name = "board" + game_num
     mycursor.execute(f"SELECT * FROM {game_name}")
     myresult = mycursor.fetchall()
@@ -202,19 +202,19 @@ def change_board_db(game_num, start_field, start_field_value, end_field, end_fie
 def change_turn_db(game_num):
     game_info = get_info_db(game_num)
     sql = "UPDATE board1 SET value = %s WHERE field = %s"
-    if game_info["color_turn"] == "white":
-        val = [("black", "color_turn"), (str(time.time()), "black_last_time_move"), ('0', "white_time")]
+    if game_info["color_turn"] == "0":
+        val = [("1", "color_turn"), (str(time.time()), "black_last_time_move"), ('0', "white_time")]
         # val = (str(int(game_info["white_time"]) - (time.time() - int(game_info["white_last_time_move"]))), "white_time")
 
-    elif game_info["color_turn"] == "black":
-        val = [("white", "color_turn"), (str(time.time()), "white_last_time_move"),('0', "black_time")]
+    elif game_info["color_turn"] == "1":
+        val = [("0", "color_turn"), (str(time.time()), "white_last_time_move"),('0', "black_time")]
         # val = (str(int(game_info["black_time"]) - (time.time() - int(game_info["black_last_time_move"]))), "black_time")
 
     elif game_info["color_turn"] == "transformation_white":
-        val = [("black", "color_turn"), (str(time.time()), "black_last_time_move"),('0', "white_time")]
+        val = [("1", "color_turn"), (str(time.time()), "black_last_time_move"),('0', "white_time")]
     
     elif game_info["color_turn"] == "transformation_black":
-        val = [("white", "color_turn"), (str(time.time()), "white_last_time_move"),('0', "black_time")]
+        val = [("0", "color_turn"), (str(time.time()), "white_last_time_move"),('0', "black_time")]
 
     mycursor.executemany(sql, val)
     mydb.commit()

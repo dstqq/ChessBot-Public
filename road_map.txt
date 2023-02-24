@@ -1,0 +1,34 @@
+-----Telegram Functionality-----
+
+✓1.Fix/create check_mate function [1 week]
+2.Implement end game functionality. [1 week]
+3.Upgrade user info functionality. [1 week]
+4.Create game test mode functionality. [2 weeks]
+5.Create history game creation + undo/redo functionality. [3 weeks]
+6.Create start_game characteristics menu functionality. [2 weeks]
+7.Add a library for 4 languages. [1 weeks]
+
+-----Django Connection-----
+
+8.Refresh knowledge of Django, and create the simplest functionality. [2 week]
+9.Create user model and combine it with the user base from Telegram. [2 weeks]
+10.Create friends functionality. [2 weeks]
+11.Implement exceptions functionality (custom alerts). [1 week]
+12.Integrate game board + functionality. [3 weeks]
+13.Connect the game on the site with Telegram and complete the functionality of the games. [3 weeks]
+
+-----Planned but No Specific Dates-----
+
+Implement a ranked system.
+Implement replaying games functionality.
+
+
+Tips:
+✓1 - There is a list of possible fields for each piece, and if the check from the moving king does not fall after all possible moves, then checkmate is issued
+2 - after issuing a positive result by the check_mate function, a message with the winner is sent to both players, change all fields in the statuses of both players
+3 - User_info fields: last_game_id, losses, wins, draws, name NOT NULL, id NOT NULL, tg_id, lang NOT NULL(Eng def), status
+4 - Special mode where you can replays figures so as you want
+5 - add a special database with move records and a special field with the current move
+6 - start_game characteristics: Time for each player, ability to undo
+7 - English, Dutch, Ukrainian, Russian
+8 - Guids, previous projects review

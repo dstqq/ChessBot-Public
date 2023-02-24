@@ -1,6 +1,7 @@
 *.pyc
 __pycache__/
-const.py
+*.py
+!main.py, sql.py
 *.cfg
 # Environments
 .venv
