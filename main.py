@@ -17,6 +17,8 @@ alf = {1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h"}
 figures = {"00": " ", "01": "♙", "02": "♗", "03": "♘", "04": "♖", "05": "♕", "06": "♔",
                       "11": "♟", "12": "♝", "13": "♞", "14": "♜", "15": "♛", "16": "♚"}
 
+castling_fields = ["g1", "g8", "c1", "c8"]
+
 
 async def show_board(chat_id, game_num, mode, call):  # create and send game board as message+keyboard
     pos = sql.get_pos_db(game_num)
@@ -112,39 +114,39 @@ async def show_board(chat_id, game_num, mode, call):  # create and send game boa
         pass
 
     keyboard_white.row(button_a8, button_b8, button_c8, button_d8,
-                       button_e8, button_f8, button_h8, button_g8)
+                       button_e8, button_f8, button_g8, button_h8)
     keyboard_white.row(button_a7, button_b7, button_c7, button_d7,
-                       button_e7, button_f7, button_h7, button_g7)
+                       button_e7, button_f7, button_g7, button_h7)
     keyboard_white.row(button_a6, button_b6, button_c6, button_d6,
-                       button_e6, button_f6, button_h6, button_g6)
+                       button_e6, button_f6, button_g6, button_h6)
     keyboard_white.row(button_a5, button_b5, button_c5, button_d5,
-                       button_e5, button_f5, button_h5, button_g5)
+                       button_e5, button_f5, button_g5, button_h5)
     keyboard_white.row(button_a4, button_b4, button_c4, button_d4,
-                       button_e4, button_f4, button_h4, button_g4)
+                       button_e4, button_f4, button_g4, button_h4)
     keyboard_white.row(button_a3, button_b3, button_c3, button_d3,
-                       button_e3, button_f3, button_h3, button_g3)
+                       button_e3, button_f3, button_g3, button_h3)
     keyboard_white.row(button_a2, button_b2, button_c2, button_d2,
-                       button_e2, button_f2, button_h2, button_g2)
+                       button_e2, button_f2, button_g2, button_h2)
     keyboard_white.row(button_a1, button_b1, button_c1, button_d1,
-                       button_e1, button_f1, button_h1, button_g1)
+                       button_e1, button_f1, button_g1, button_h1)
     keyboard_white.add(button_turn)
 
     keyboard_black.row(button_a1, button_b1, button_c1, button_d1,
-                       button_e1, button_f1, button_h1, button_g1)
+                       button_e1, button_f1, button_g1, button_h1)
     keyboard_black.row(button_a2, button_b2, button_c2, button_d2,
-                       button_e2, button_f2, button_h2, button_g2)
+                       button_e2, button_f2, button_g2, button_h2)
     keyboard_black.row(button_a3, button_b3, button_c3, button_d3,
-                       button_e3, button_f3, button_h3, button_g3)
+                       button_e3, button_f3, button_g3, button_h3)
     keyboard_black.row(button_a4, button_b4, button_c4, button_d4,
-                       button_e4, button_f4, button_h4, button_g4)
+                       button_e4, button_f4, button_g4, button_h4)
     keyboard_black.row(button_a5, button_b5, button_c5, button_d5,
-                       button_e5, button_f5, button_h5, button_g5)
+                       button_e5, button_f5, button_g5, button_h5)
     keyboard_black.row(button_a6, button_b6, button_c6, button_d6,
-                       button_e6, button_f6, button_h6, button_g6)
+                       button_e6, button_f6, button_g6, button_h6)
     keyboard_black.row(button_a7, button_b7, button_c7, button_d7,
-                       button_e7, button_f7, button_h7, button_g7)
+                       button_e7, button_f7, button_g7, button_h7)
     keyboard_black.row(button_a8, button_b8, button_c8, button_d8,
-                       button_e8, button_f8, button_h8, button_g8)
+                       button_e8, button_f8, button_g8, button_h8)
     keyboard_black.add(button_turn)
 
     myresult = sql.get_all_db(game_num)
@@ -201,6 +203,7 @@ async def do_turn(chat_id, call, game_num):  # movement mechanism
     sql.change_board_db(game_num, origin_square, "00", call.data, b[origin_square])
     sql.save_start_field_db(game_num, " ")
     color_turn = sql.change_turn_db(game_num)
+    change_castling(game_num)
     await show_board(chat_id, game_num, "both", call)
     game_info = sql.get_info_db(game_num)
     if check_for_check(color_turn, sql.get_board_db(game_num)):
@@ -400,7 +403,7 @@ def check_bishop(b, x, y):  # return all possible squares to move as a bishop
     return res
 
 
-def check_queens(b, x, y):  # return all possible squares to move as a queen
+def check_queen(b, x, y):  # return all possible squares to move as a queen
     return check_bishop(b, x, y) + check_rook(b, x, y)
 
 
@@ -422,101 +425,80 @@ figures_move_options = {
     "02": check_bishop,
     "03": check_knight,
     "04": check_rook,
-    "05": check_queens,
+    "05": check_queen,
     "06": check_kings,
     "11": check_black_pawn,
     "12": check_bishop,
     "13": check_knight,
     "14": check_rook,
-    "15": check_queens,
+    "15": check_queen,
     "16": check_kings
 }
 
 
-# return all possible squares to move as a king
-def check_king(game_num, x1, y1, x2, y2):
-    call = x2+y2  # new position
-    i, j = 1, 1
-    while alf[i] != x1:
-        i += 1
-    while alf[j] != x2:
-        j += 1
-    start_field = sql.get_pos_db(game_num)
-    b = sql.get_board_db(game_num)
+def check_king(game_num, x, y):
+    # Determine target square
+    target_square = x + y
+
+    # Get board and game information
+    origin_square = sql.get_pos_db(game_num)
+    board = sql.get_board_db(game_num)
     game_info = sql.get_info_db(game_num)
 
-    if b[start_field] == "06" and call == "g1" and game_info["white_king_move"] == "0":
-        # white king kingside castling
-        if b[call] != "00":  # if the new king field isn't empty
-            return "castling_impossible_kk"
-        # if the king and king's rook didn't move for the game
-        elif game_info["white_king_move"] == "0" and game_info["white_right_rock_move"] == "0":
-            if b["f1"] == "00":  # if the field f1 is empty, then castling is possible
-                return "white_short"
+    # Check for origin_square moves
+    if board[origin_square] == "06" and game_info["white_king_move"] == "0":
+        if target_square == "g1":
+            # White kingside castling
+            if board["f1"] == "00" and board["g1"] == "00":
+                # Check if path to target square is clear
+                if game_info["white_right_rock_move"] == "0":
+                    sql.do_castling_db(game_num, "white_short")
+                    return "Castling"
+                else:
+                    return "Castling is not possible because the rook has left its position"
             else:
-                return "castling_impossible_f1"
-        else:
-            if game_info["white_king_move"] == "1":
-                return "castling_impossible_k"
+                return "Castling is impossible, obstruction on f1"
+        elif target_square == "c1":
+            # White queenside castling
+            if board["b1"] == "00" and board["c1"] == "00" and board["d1"] == "00":
+                # Check if path to target square is clear
+                if game_info["white_left_rock_move"] == "0":
+                    sql.do_castling_db(game_num, "white_long")
+                    return "Castling"
+                else:
+                    return "Castling is not possible because the rook has left its position"
             else:
-                return "castling_impossible_r"
+                return "Castling is impossible, obstruction on d1" if board["d1"] != "00" else "Castling is impossible, obstruction on b1"
 
-    elif b[start_field] == "06" and call == "c1" and game_info["white_king_move"] == "0":
-        # white king queenside castling
-        if b[call] != "00":
-            return "castling_impossible_kk"
-        # if the king and queen's rook didn't move for the game
-        elif game_info["white_left_rock_move"] == "0" and game_info["white_king_move"] == "0":
-            # if the fields b1 and d1 are empty, then castling is possible
-            if b["b1"] == "00" and b["d1"] == "00":
-                return "white_long"
+    elif board[origin_square] == "16" and game_info["black_king_move"] == "0":
+        if target_square == "g8":
+            # Black kingside castling
+            if board["f8"] == "00" and board["g8"] == "00":
+                # Check if path to target square is clear
+                if game_info["black_right_rock_move"] == "0":
+                    sql.do_castling_db(game_num, "black_short")
+                    return "Castling"
+                else:
+                    return "Castling is not possible because the rook has left its position"
             else:
-                return "castling_impossible"
-        else:
-            if game_info["white_king_move"] == "1":
-                return "castling_impossible_k"
-            else:
-                return "castling_impossible_r"
+                return "Castling is impossible, obstruction on f8"
+        elif target_square == "c8":
+            # Black queenside castling
+            if board["b8"] == "00" and board["c8"] == "00" and board["d8"] == "00":
+                # Check if path to target square is clear
+                if game_info["black_left_rock_move"] == "0":
+                    sql.do_castling_db(game_num, "black_long")
+                    return "Castling"
+                else:
+                    return "Castling is not possible because the rook has left its position"
 
-    if b[start_field] == "16" and call == "g8" and game_info["black_king_move"] == "0":
-        # black king kingside castling
-        if b[call] != "00":
-            return "castling_impossible_kk"
-
-        # if the king and king's rook didn't move for the game
-        elif game_info["black_king_move"] == "0" and game_info["black_right_rock_move"] == "0":
-            if b["f8"] == "00":  # if the field f8 is empty, then castling is possible
-                return "black_short"
             else:
-                return "castling_impossible_f8"
-
-        else:
-            if game_info["black_king_move"] == "1":
-                return "castling_impossible_k"
-            else:
-                return "castling_impossible_r"
-
-    elif b[start_field] == "16" and call == "c8" and game_info["black_king_move"] == "0":
-        # black king queenside castling
-        if b[call] != "00":
-            return "castling_impossible_kk"
-        # if the king and queen's rook didn't move for the game
-        elif game_info["black_left_rock_move"] == "0" and game_info["black_king_move"] == "0":
-            # if the fields b8 and d8 are empty, then castling is possible
-            if b["b8"] == "00" and b["d8"] == "00":
-                return "black_long"
-            else:
-                return "castling_impossible"
-        else:
-            if game_info["black_king_move"] == "1":
-                return "castling_impossible_k"
-            else:
-                return "castling_impossible_r"
+                return "Castling is impossible, obstruction on d8" if board["d8"] != "00" else "Castling is impossible, obstruction on b8"
     else:
-        if abs(i-j)+abs(int(y1)-int(y2)) < 3 and (abs(i-j) == 0 and abs(int(y1)-int(y2)) == 1) or (abs(i-j) == 1 and abs(int(y1)-int(y2) == 0)) or (abs(i-j) == 1 and abs(int(y1)-int(y2)) == 1):
-            return "yes"
+        if target_square in check_kings(board, origin_square[0], origin_square[1]):
+            return True
         else:
-            return "king_wall"
+            return "The king can't walk like that"
 
 
 def get_values(d, keys, default=None):
@@ -621,8 +603,7 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
     if game_info["color_turn"].startswith("transf"):  # if a figure transformation is taking place now
         if callback_query.data.startswith("transf"):  # transf|15|d1
             callback_query_info = callback_query.data.split("|")  # ['transf', '15', 'd1']
-            new_figure = callback_query_info[1]
-            place = callback_query_info[2]
+            new_figure, place = callback_query_info[1], callback_query_info[2]
             sql.save_new_figure_db(game_num, new_figure, place)
             color_turn = sql.change_turn_db(game_num)  # color_turn "transt_0|1" -> "1"|"0"
             await show_board(chat_id, game_num, "both", callback_query)
@@ -666,24 +647,29 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
                     await show_board(chat_id, game_num, "update", callback_query)
                 else:
                     figure = b[origin_square]
-                    if target_square in figures_move_options[figure](b, x1, y1):
+                    if (figure[1] == "6") and target_square in castling_fields:  # castling
+                        result_king = check_king(game_num, target_square[0], target_square[1])
+                        if result_king is True:
+                            await do_turn(chat_id, callback_query, game_num)
+                        elif result_king == "Castling":
+                            await show_board(chat_id, game_num, "both", callback_query)
+                        else:
+                            await callback_query.answer(show_alert=False, text=result_king)
+                    elif target_square in figures_move_options[figure](b, x1, y1):
                         b[target_square] = figure
                         b[origin_square] = "00"
                         if check_for_check(game_info["color_turn"], b):
                             await callback_query.answer(show_alert=False, text="Будет шах даттебайо!")
                         else:
-                            if figure == "01" and y2 == "8":
-                                sql.save_turn_field_db(game_num, "transf_0")
-                                sql.change_board_db(game_num, origin_square, "00", target_square, "01")
+                            if (figure == "01" and y2 == "8") or (figure == "11" and y2 == "1"):  # pawn transformation
+                                sql.save_turn_field_db(game_num, f"transf_{figure[0]}")
+                                sql.change_board_db(game_num, origin_square, "00", target_square, figure)
                                 await show_board(chat_id, game_num, "both", callback_query)
-                                await white_transformation(chat_id, target_square)
-                            elif figure == "11" and y2 == "1":
-                                sql.save_turn_field_db(game_num, "transf_1")
-                                sql.change_board_db(game_num, origin_square, "00", target_square, "11")
-                                await show_board(chat_id, game_num, "both", callback_query)
-                                await black_transformation(chat_id, target_square)
+                                await white_transformation(chat_id, target_square) if figure == "01" else await black_transformation(chat_id, target_square)
                             else:
                                 await do_turn(chat_id, callback_query, game_num)
+                    else:
+                        await callback_query.answer(show_alert=False, text=f"{figures[figure]} can't walk like that")
     else:
         await callback_query.answer(text="Now is not your turn!")
 
