@@ -16,11 +16,12 @@ alf = {1: "a", 2: "b", 3: "c", 4: "d", 5: "e", 6: "f", 7: "g", 8: "h"}
 
 figures = {"00": " ", "01": "♙", "02": "♗", "03": "♘", "04": "♖", "05": "♕", "06": "♔",
                       "11": "♟", "12": "♝", "13": "♞", "14": "♜", "15": "♛", "16": "♚"}
+figure_color = {"0": "white", "1": "black", "white": "0", "black": "1"}
 
 castling_fields = ["g1", "g8", "c1", "c8"]
 
 
-async def show_board(chat_id, game_num, mode, call):  # create and send game board as message+keyboard
+async def show_board(game_num: str, mode: str = "both"):  # create and send game board as message+keyboard
     pos = sql.get_pos_db(game_num)
     b = sql.get_board_db(game_num)
     keyboard_white = InlineKeyboardMarkup()  # White player keyboard
@@ -108,7 +109,7 @@ async def show_board(chat_id, game_num, mode, call):  # create and send game boa
 
     if pos == " ":
         button_turn = InlineKeyboardButton(text="ХОД", callback_data="pass")
-    elif pos.find("tranformation") == -1:
+    elif pos.find("tranf") == -1:
         button_turn = InlineKeyboardButton(text="ХОД" + figures[b[pos]], callback_data="pass")
     else:
         pass
@@ -149,10 +150,10 @@ async def show_board(chat_id, game_num, mode, call):  # create and send game boa
                        button_e8, button_f8, button_g8, button_h8)
     keyboard_black.add(button_turn)
 
-    myresult = sql.get_all_db(game_num)
+    keyboards = [keyboard_white, keyboard_black]
+    game_info = sql.get_info_db(game_num)
 
-    t = "♔ Белого короля" if myresult[64][2] == "0" or myresult[
-        64][2] == "transformation_white" else "♚ Черного короля"  # myresult[64][2] == game_info['color_turn']
+    t = "♔ Белого короля" if game_info["color_turn"] == "white" or game_info["color_turn"] == "transf_white" else "♚ Черного короля" 
     """timer = str(players["timew"]) if players["turn"] == "white" else str(players["timeb"])
     timew, timeb = Decimal(str(players["timew"])), Decimal(
         str(players["timeb"]))
@@ -164,21 +165,20 @@ async def show_board(chat_id, game_num, mode, call):  # create and send game boa
     msg = (
         "Шахматная дуэль между:\n"
         "Белый король: " +
-        f'<a href=\'https://t.me/{myresult[75][2]}\'>{myresult[73][2]}</a>\n'
+        f'<a href=\'https://t.me/{game_info["white_username"]}\'>{game_info["white_name"]}</a>\n'
         "<b>VS</b>\n"
         "Черный король: " +
-        f'<a href=\'https://t.me/{myresult[76][2]}\'>{myresult[74][2]}</a>\n'
+        f'<a href=\'https://t.me/{game_info["black_username"]}\'>{game_info["black_name"]}</a>\n'
         "Сейчас ход " + f"<b>{t}</b> ⏳"  # + timer
     )
     if mode == "both":
-        message_objw = await bot.send_message(int(myresult[71][2]), parse_mode="HTML", disable_web_page_preview=True, text=msg, reply_markup=keyboard_white)
-        message_objb = await bot.send_message(int(myresult[72][2]), parse_mode="HTML", disable_web_page_preview=True, text=msg, reply_markup=keyboard_black)
-        # players['mes_idw'], players['mes_idb'] = message_objw.message_id, message_objb.message_id  заменить
+        message_objw = await bot.send_message(int(game_info["white_id"]), parse_mode="HTML", disable_web_page_preview=True, text=msg, reply_markup=keyboard_white)
+        message_objb = await bot.send_message(int(game_info["black_id"]), parse_mode="HTML", disable_web_page_preview=True, text=msg, reply_markup=keyboard_black)
+        sql.change_last_mes_id(game_num, "white", message_objw.message_id)
+        sql.change_last_mes_id(game_num, "black", message_objb.message_id)
     else:
-        if chat_id == int(myresult[71][2]):
-            await bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, disable_web_page_preview=True, reply_markup=keyboard_white)
-        elif chat_id == int(myresult[72][2]):
-            await bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, disable_web_page_preview=True, reply_markup=keyboard_black)
+        await bot.edit_message_text(msg, game_info[game_info["color_turn"]+"_id"], game_info[f"{game_info['color_turn']}_last_mes_id"], disable_web_page_preview=True, reply_markup=keyboards[int(figure_color[game_info["color_turn"]])])
+       
 
 
 def change_castling(game_num):  # func to change player castling status
@@ -197,24 +197,33 @@ def change_castling(game_num):  # func to change player castling status
         sql.change_castling_info_db(game_num, "black_right_rock_move")
 
 
-async def do_turn(chat_id, call, game_num):  # movement mechanism
+async def do_turn(game_num, target_square):  # movement mechanism
     origin_square = sql.get_pos_db(game_num)
     b = sql.get_board_db(game_num)
-    sql.change_board_db(game_num, origin_square, "00", call.data, b[origin_square])
+    sql.change_board_db(game_num, origin_square, "00", target_square, b[origin_square])
     sql.save_start_field_db(game_num, " ")
     color_turn = sql.change_turn_db(game_num)
     change_castling(game_num)
-    await show_board(chat_id, game_num, "both", call)
+    await show_board(game_num, "both")
     game_info = sql.get_info_db(game_num)
     if check_for_check(color_turn, sql.get_board_db(game_num)):
-        print("SHAH")
-        await bot.send_message(int(game_info["white_id"]), game_info["color_turn"]+" is in check")
-        await bot.send_message(int(game_info["black_id"]), game_info["color_turn"]+" is in check")
         if check_mate(game_num):
-            print("MAT")
-            await bot.send_message(int(game_info["white_id"]), game_info["color_turn"]+" is mated")
-            await bot.send_message(int(game_info["black_id"]), game_info["color_turn"]+" is mated")
-
+            msg = (
+                f'The {game_info["color_turn"].capitalize()} king {game_info[game_info["color_turn"]+"_name"]} is checkmated.'
+                'Game over!'
+            )
+            await bot.send_message(int(game_info["white_id"]), msg)
+            await bot.send_message(int(game_info["black_id"]), msg)
+            sql.disconnect_from_game(game_info["white_id"])
+            sql.disconnect_from_game(game_info["black_id"])
+            sql.update_user_wld_info(game_info[f"{color_turn}_id"], 'losses')
+            if color_turn == "white":
+                sql.update_user_wld_info(game_info["black_id"], 'wins')
+            else:
+                sql.update_user_wld_info(game_info["white_id"], 'wins')
+        else:
+            await bot.send_message(int(game_info["white_id"]), f"The {game_info['color_turn'].capitalize()} is in check")
+            await bot.send_message(int(game_info["black_id"]), f"The {game_info['color_turn'].capitalize()} is in check")
 
 
 async def white_transformation(chat_id, square):  # sending small keyboard to white transformation 
@@ -511,10 +520,10 @@ def check_for_check(color_turn, b) -> bool:  # checking for check on edited desk
     black_king_pos = get_values(b, '16')
 
     for pos, figure in b.items():
-        if color_turn == "0" and figure[0] == "1":
+        if color_turn == "white" and figure[0] == "1":
             if white_king_pos in figures_move_options[figure](b, pos[0], pos[1]):
                 return True
-        elif color_turn == "1" and figure[0] == "0" and figure[1] != "0":
+        elif color_turn == "black" and figure[0] == "0" and figure[1] != "0":
             if black_king_pos in figures_move_options[figure](b, pos[0], pos[1]):
                 return True
 
@@ -540,6 +549,15 @@ def check_mate(game_num):
     return True
 
 
+@dp.message_handler(commands=['start'])  # first time registration
+async def start_game(message: types.Message):
+    name = sql.add_tg_new_user(message)
+    if name:
+        await bot.send_message(message.from_user.id, f'Welcome, {name}!')
+    else:
+        await bot.send_message(message.from_user.id, f'Press /help for some helpful information.\n/start_game to create a new game\n/settings to customize')
+
+
 @dp.message_handler(commands=['start_game'])  # creating new game function
 async def start_game(message: types.Message):
     if message.chat.id < 0:  # check for game creation chat, if it is the group then sends away
@@ -556,6 +574,7 @@ async def start_game(message: types.Message):
             name = str(message.from_user.first_name)
         if str(message.from_user.last_name) != "None":
             name += str(message.from_user.last_name)
+        sql.connect_to_game(message.from_user.id, game)
         sql.init_board_table(str(message_obj.message_id), str(message.chat.id), str(
             name), message.from_user.username, str(time.time()))
         await bot.send_message(const.diema, '/accept_game_1')
@@ -570,7 +589,8 @@ async def accept_game_1(message: types.Message):
         name += str(message.from_user.last_name)
     sql.accept_game_db("1", str(message.from_user.id), str(
         name), message.from_user.username, str(time.time()))
-    await show_board(message.chat.id, "1", "both", 1)
+    sql.connect_to_game(message.from_user.id, "1")
+    await show_board("1")
 
 
 @dp.message_handler(commands=['get_board'])
@@ -590,15 +610,25 @@ async def create_bot_info_table(message: types.Message):
         await bot.send_message(const.admin, 'TABLE bot_info created seccessfully.')
 
 
+# mydatabase.users_info creating function
+@dp.message_handler(commands=['start_users'])
+async def create_bot_info_table(message: types.Message):
+    """
+    !!!mydatabase MUST BE CREATED!!!
+    """
+    if message.from_user.id == const.admin:
+        sql.create_users_info_table()
+        await bot.send_message(const.admin, 'TABLE users_info created seccessfully.')
+
+
 @dp.callback_query_handler()  # lambda c: c.data == 'a1' all callback_query handle
-async def on_first_button_first_answer(callback_query: types.CallbackQuery):
+async def callback_query_response(callback_query: types.CallbackQuery):
     chat_id = callback_query.message.chat.id
     game_num = "1"  # getting game number from player info
     origin_square = sql.get_pos_db(game_num)
     b = sql.get_board_db(game_num)
     game_info = sql.get_info_db(game_num)
     # game_info["color_turn"] possible values: "0", "1", "transf_0", "transf_1"
-    player_id:str = "white_id" if game_info["color_turn"] == "0" else "black_id"
     print(f"callback_query.data = {callback_query.data}")
     if game_info["color_turn"].startswith("transf"):  # if a figure transformation is taking place now
         if callback_query.data.startswith("transf"):  # transf|15|d1
@@ -606,14 +636,14 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
             new_figure, place = callback_query_info[1], callback_query_info[2]
             sql.save_new_figure_db(game_num, new_figure, place)
             color_turn = sql.change_turn_db(game_num)  # color_turn "transt_0|1" -> "1"|"0"
-            await show_board(chat_id, game_num, "both", callback_query)
+            await show_board(game_num)
             if check_for_check(color_turn, sql.get_board_db(game_num)):
-                msg = "Black king is in check" if game_info["color_turn"][-1] == "0" else "White king is in check"
+                msg = "Black king is in check" if game_info["color_turn"][-1] == "e" else "White king is in check"
                 await bot.send_message(int(game_info["white_id"]), msg)
                 await bot.send_message(int(game_info["black_id"]), msg)
         else:
             await callback_query.answer(show_alert=False, text="Now is not your turn!")
-    elif game_info[player_id] == str(chat_id):  # if the player whose turn it is pressed the button
+    elif game_info[game_info["color_turn"]+"_id"] == str(chat_id):  # if the player whose turn it is pressed the button
         target_square = callback_query.data
         if origin_square == " ":  # if figure is NOT selected
             if target_square == "pass":
@@ -621,12 +651,12 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
             # if a non-empty field for selecting a figure is selected
             elif b[target_square] != "00" and len(target_square) < 4:
                 # white chooses black
-                if game_info["color_turn"] != b[target_square][0]:
+                if figure_color[game_info["color_turn"]] != b[target_square][0]:
                     await callback_query.answer(show_alert=False, text="Figure isn't selected")
                 else:
                     await callback_query.answer(show_alert=False, text=f"You choose {figures[b[target_square]]}, choose field")
                     sql.save_start_field_db(game_num, target_square)
-                    await show_board(chat_id, game_num, "update", callback_query)
+                    await show_board(game_num, "update")
             # empty field
             else:
                 await callback_query.answer(show_alert=False, text="Choose non-empty field")
@@ -638,21 +668,21 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
             x2, y2 = target_square[0], target_square[1]
             if target_square == "pass":  # если нажата кнопка ХОД, для сброса выбранной фигуры
                 sql.save_start_field_db(game_num, " ")
-                await show_board(chat_id, game_num, "update", callback_query)
+                await show_board(game_num, "update")
             else:
                 if not different_color_figure(b, x1, y1, x2, y2) and b[target_square] != "00":  # if a figure of the same color is selected
                     await callback_query.answer(show_alert=False,
                                                 text=f"You choose {figures[b[target_square]]}, choose field")
                     sql.save_start_field_db(game_num, callback_query.data)
-                    await show_board(chat_id, game_num, "update", callback_query)
+                    await show_board(game_num, "update")
                 else:
                     figure = b[origin_square]
                     if (figure[1] == "6") and target_square in castling_fields:  # castling
                         result_king = check_king(game_num, target_square[0], target_square[1])
                         if result_king is True:
-                            await do_turn(chat_id, callback_query, game_num)
+                            await do_turn(game_num, target_square)
                         elif result_king == "Castling":
-                            await show_board(chat_id, game_num, "both", callback_query)
+                            await show_board(game_num)
                         else:
                             await callback_query.answer(show_alert=False, text=result_king)
                     elif target_square in figures_move_options[figure](b, x1, y1):
@@ -662,12 +692,12 @@ async def on_first_button_first_answer(callback_query: types.CallbackQuery):
                             await callback_query.answer(show_alert=False, text="Будет шах даттебайо!")
                         else:
                             if (figure == "01" and y2 == "8") or (figure == "11" and y2 == "1"):  # pawn transformation
-                                sql.save_turn_field_db(game_num, f"transf_{figure[0]}")
+                                sql.save_turn_field_db(game_num, f"transf_{figure_color[figure[0]]}")
                                 sql.change_board_db(game_num, origin_square, "00", target_square, figure)
-                                await show_board(chat_id, game_num, "both", callback_query)
+                                await show_board(game_num)
                                 await white_transformation(chat_id, target_square) if figure == "01" else await black_transformation(chat_id, target_square)
                             else:
-                                await do_turn(chat_id, callback_query, game_num)
+                                await do_turn(game_num, target_square)
                     else:
                         await callback_query.answer(show_alert=False, text=f"{figures[figure]} can't walk like that")
     else:
@@ -679,14 +709,15 @@ async def accept_game(message: types.Message):
     s = message.text
     try:
         if message.forward_from.id == const.bot and "To invite a player" in s:
+            game_num = s[s.find("№") + 1:s.find("To invite a player") - 1]
             name = " "
             if str(message.from_user.first_name) != "None":
                 name = str(message.from_user.first_name)
             if str(message.from_user.last_name) != "None":
                 name += str(message.from_user.last_name)
-            sql.accept_game_db(s[s.find("№") + 1:s.find("To invite a player") - 1], str(
+            sql.accept_game_db(game_num, str(
                 message.from_user.id), str(name), str(message.from_user.username), str(time.time()))
-            await show_board(message.chat.id, s[s.find("№") + 1:s.find("To invite a player") - 1], "both", 1)
+            await show_board(game_num)
     except AttributeError:
         pass
 

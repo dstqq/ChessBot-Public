@@ -1,10 +1,10 @@
 -----Telegram Functionality-----
 
 ✓1.Fix/create check_mate function [1 week]
-2.Implement end game functionality. [1 week]
-3.Upgrade user info functionality. [1 week]
+✓2.Implement end game functionality. [1 week]
+✓x3.Upgrade user info functionality. [1 week]
 3.5Upgrade check_kings and figures_move_options[figure](b, pos[0], pos[1]) with wargs, kwargs[1 week]
-4.Create game test mode functionality. [2 weeks]
+4.Create game test mode functionality + check_draw. [2 weeks]
 5.Create history game creation + undo/redo functionality. [3 weeks]
 6.Create start_game characteristics menu functionality. [2 weeks]
 7.Add a library for 4 languages. [1 weeks]
